@@ -3091,6 +3091,15 @@
                         
                         <div class='ff-el-group ff-text-left ff_submit_btn_wrapper'>
                             <button type="submit" class="ff-btn ff-btn-submit ff-btn-lg ff_btn_style">Donate Now</button>
+                            <button type="button" id="generateQRBtn" class="ff-btn ff-btn-submit ff-btn-lg ff_btn_style" style="margin-left: 10px; background: #10b981;">Donate Using QR</button>
+                        </div>
+                        
+                        <!-- QR Code Container -->
+                        <div id="qrCodeContainer" style="display: none; margin-top: 20px; padding: 20px; background: #f9fafb; border-radius: 8px; text-align: center;">
+                            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">Scan QR Code to Pay</h3>
+                            <div id="qrcode" style="display: inline-block;"></div>
+                            <p style="margin: 15px 0 0 0; color: #666; font-size: 14px;">Open any UPI app and scan this QR code</p>
+                            <button type="button" id="closeQRBtn" style="margin-top: 15px; padding: 8px 20px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
                         </div>
                     </fieldset>
                 </form>
@@ -3167,10 +3176,18 @@
                 };
             </script>
             
+            <!-- QRCode Library -->
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+            
             <script type="text/javascript">
                 (function() {
                     var form = document.getElementById("fluentform_5");
+                    var generateQRBtn = document.getElementById("generateQRBtn");
+                    var closeQRBtn = document.getElementById("closeQRBtn");
+                    var qrCodeContainer = document.getElementById("qrCodeContainer");
+                    var qrCodeDiv = document.getElementById("qrcode");
                     
+                    // Handle "Donate Now" button (Direct UPI redirect)
                     if (form) {
                         form.addEventListener("submit", function(e) {
                             e.preventDefault();
@@ -3204,19 +3221,89 @@
                             });
                             
                             // UPI Configuration - CHANGE THIS TO YOUR UPI ID
-                            var upiID = "8103642254@ptsbi";
+                            var upiID = "8770974494@ptaxis";
                             var payeeName = "Donation";
-                            var transactionNote = "Donation via Windspire";
+                            
+                            // Build UPI Payment URL (removed transaction note to avoid policy blocks)
+                            var upiLink = "upi://pay?pa=" + upiID + 
+                                         "&pn=" + encodeURIComponent(payeeName) + 
+                                         "&am=" + amount + 
+                                         "&cu=INR";
+                            
+                            // Redirect to UPI apps
+                            window.location.href = upiLink;
+                        });
+                    }
+                    
+                    // Handle "Donate Using QR" button
+                    if (generateQRBtn) {
+                        generateQRBtn.addEventListener("click", function(e) {
+                            e.preventDefault();
+                            
+                            // Get form values
+                            var phone = document.getElementById("ff_5_input_text_2").value.trim();
+                            var email = document.getElementById("ff_5_email").value.trim();
+                            var amount = document.getElementById("ff_5_custom-payment-amount").value.trim();
+                            
+                            // Validate inputs
+                            if (!phone) {
+                                alert("Please enter your phone number");
+                                return;
+                            }
+                            
+                            if (!email) {
+                                alert("Please enter your email address");
+                                return;
+                            }
+                            
+                            if (!amount || parseFloat(amount) <= 0) {
+                                alert("Please enter a valid donation amount");
+                                return;
+                            }
+                            
+                            // Optional: Store donation details
+                            console.log("QR Donation Details:", {
+                                phone: phone,
+                                email: email,
+                                amount: amount
+                            });
+                            
+                            // UPI Configuration - CHANGE THIS TO YOUR UPI ID
+                            var upiID = "8770974494@ptaxis";
+                            var payeeName = "Donation";
                             
                             // Build UPI Payment URL
                             var upiLink = "upi://pay?pa=" + upiID + 
                                          "&pn=" + encodeURIComponent(payeeName) + 
                                          "&am=" + amount + 
-                                         "&cu=INR" + 
-                                         "&tn=" + encodeURIComponent(transactionNote);
+                                         "&cu=INR";
                             
-                            // Redirect to UPI apps
-                            window.location.href = upiLink;
+                            // Clear previous QR code
+                            qrCodeDiv.innerHTML = "";
+                            
+                            // Generate new QR code
+                            new QRCode(qrCodeDiv, {
+                                text: upiLink,
+                                width: 256,
+                                height: 256,
+                                colorDark: "#000000",
+                                colorLight: "#ffffff",
+                                correctLevel: QRCode.CorrectLevel.H
+                            });
+                            
+                            // Show QR code container
+                            qrCodeContainer.style.display = "block";
+                            
+                            // Scroll to QR code
+                            qrCodeContainer.scrollIntoView({ behavior: "smooth", block: "center" });
+                        });
+                    }
+                    
+                    // Handle "Close" button
+                    if (closeQRBtn) {
+                        closeQRBtn.addEventListener("click", function() {
+                            qrCodeContainer.style.display = "none";
+                            qrCodeDiv.innerHTML = "";
                         });
                     }
                 })();
