@@ -3094,6 +3094,17 @@
                             <button type="button" id="generateQRBtn" class="ff-btn ff-btn-submit ff-btn-lg ff_btn_style" style="margin-left: 10px; background: #10b981;">Donate Using QR</button>
                         </div>
                         
+                        <!-- Payment App Selection Modal (for iOS) -->
+                        <div id="paymentAppModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+                            <div style="background: white; padding: 20px; border-radius: 12px; max-width: 400px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                                <h3 style="margin: 0 0 20px 0; color: #333; text-align: center;">Choose Payment App</h3>
+                                <div id="paymentAppButtons" style="display: flex; flex-direction: column; gap: 10px;">
+                                    <!-- Payment app buttons will be inserted here -->
+                                </div>
+                                <button type="button" id="closeModalBtn" style="margin-top: 20px; width: 100%; padding: 12px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">Cancel</button>
+                            </div>
+                        </div>
+                        
                         <!-- QR Code Container -->
                         <div id="qrCodeContainer" style="display: none; margin-top: 20px; padding: 20px; background: #f9fafb; border-radius: 8px; text-align: center;">
                             <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">Scan QR Code to Pay</h3>
@@ -3186,87 +3197,152 @@
                     var closeQRBtn = document.getElementById("closeQRBtn");
                     var qrCodeContainer = document.getElementById("qrCodeContainer");
                     var qrCodeDiv = document.getElementById("qrcode");
+                    var paymentAppModal = document.getElementById("paymentAppModal");
+                    var closeModalBtn = document.getElementById("closeModalBtn");
+                    var paymentAppButtons = document.getElementById("paymentAppButtons");
+                    
+                    // UPI Configuration - CHANGE THIS TO YOUR UPI ID
+                    var upiID = "2760848a@bandhan";
+                    var payeeName = "Donation";
                     
                     // Detect if device is iOS
                     function isIOS() {
                         return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                     }
                     
-                    // Handle "Donate Now" button (Direct UPI redirect)
+                    // Payment apps configuration with deep links
+                    var paymentApps = [
+                        {
+                            name: "Google Pay",
+                            scheme: "tez://upi/pay",
+                            package: "com.google.android.apps.nbu.paisa.user",
+                            color: "#5F6368"
+                        },
+                        {
+                            name: "PhonePe",
+                            scheme: "phonepe://pay",
+                            package: "com.phonepe.app",
+                            color: "#5F259F"
+                        },
+                        {
+                            name: "Paytm",
+                            scheme: "paytmmp://pay",
+                            package: "net.one97.paytm",
+                            color: "#00BAF2"
+                        },
+                        {
+                            name: "Amazon Pay",
+                            scheme: "amazonpay://pay",
+                            package: "in.amazon.mShop.android.shopping",
+                            color: "#FF9900"
+                        },
+                        {
+                            name: "BHIM",
+                            scheme: "bhim://pay",
+                            package: "in.org.npci.upiapp",
+                            color: "#D32F2F"
+                        },
+                        {
+                            name: "WhatsApp",
+                            scheme: "whatsapp://pay",
+                            package: "com.whatsapp",
+                            color: "#25D366"
+                        },
+                        {
+                            name: "Other UPI Apps",
+                            scheme: "upi://pay",
+                            package: "",
+                            color: "#6B7280"
+                        }
+                    ];
+                    
+                    // Build UPI URL
+                    function buildUpiUrl(scheme, amount) {
+                        var params = "?pa=" + upiID + 
+                                    "&pn=" + encodeURIComponent(payeeName) + 
+                                    "&am=" + amount + 
+                                    "&cu=INR";
+                        return scheme + params;
+                    }
+                    
+                    // Validate form inputs
+                    function validateInputs() {
+                        var phone = document.getElementById("ff_5_input_text_2").value.trim();
+                        var email = document.getElementById("ff_5_email").value.trim();
+                        var amount = document.getElementById("ff_5_custom-payment-amount").value.trim();
+                        
+                        if (!phone) {
+                            alert("Please enter your phone number");
+                            return null;
+                        }
+                        
+                        if (!email) {
+                            alert("Please enter your email address");
+                            return null;
+                        }
+                        
+                        if (!amount || parseFloat(amount) <= 0) {
+                            alert("Please enter a valid donation amount");
+                            return null;
+                        }
+                        
+                        return { phone: phone, email: email, amount: amount };
+                    }
+                    
+                    // Show payment app selection modal
+                    function showPaymentAppModal(amount) {
+                        // Clear previous buttons
+                        paymentAppButtons.innerHTML = "";
+                        
+                        // Create button for each payment app
+                        paymentApps.forEach(function(app) {
+                            var button = document.createElement("button");
+                            button.type = "button";
+                            button.textContent = app.name;
+                            button.style.cssText = "padding: 15px; background: " + app.color + "; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; transition: opacity 0.2s;";
+                            
+                            button.addEventListener("mouseover", function() {
+                                this.style.opacity = "0.8";
+                            });
+                            
+                            button.addEventListener("mouseout", function() {
+                                this.style.opacity = "1";
+                            });
+                            
+                            button.addEventListener("click", function() {
+                                var upiUrl = buildUpiUrl(app.scheme, amount);
+                                window.location.href = upiUrl;
+                                
+                                // Close modal after a delay
+                                setTimeout(function() {
+                                    paymentAppModal.style.display = "none";
+                                }, 500);
+                            });
+                            
+                            paymentAppButtons.appendChild(button);
+                        });
+                        
+                        // Show modal
+                        paymentAppModal.style.display = "flex";
+                    }
+                    
+                    // Handle "Donate Now" button
                     if (form) {
                         form.addEventListener("submit", function(e) {
                             e.preventDefault();
                             
-                            // Get form values
-                            var phone = document.getElementById("ff_5_input_text_2").value.trim();
-                            var email = document.getElementById("ff_5_email").value.trim();
-                            var amount = document.getElementById("ff_5_custom-payment-amount").value.trim();
+                            var inputs = validateInputs();
+                            if (!inputs) return;
                             
-                            // Validate inputs
-                            if (!phone) {
-                                alert("Please enter your phone number");
-                                return;
-                            }
+                            console.log("Donation Details:", inputs);
                             
-                            if (!email) {
-                                alert("Please enter your email address");
-                                return;
-                            }
-                            
-                            if (!amount || parseFloat(amount) <= 0) {
-                                alert("Please enter a valid donation amount");
-                                return;
-                            }
-                            
-                            // Optional: Store donation details (you can send to server here)
-                            console.log("Donation Details:", {
-                                phone: phone,
-                                email: email,
-                                amount: amount
-                            });
-                            
-                            // UPI Configuration - CHANGE THIS TO YOUR UPI ID
-                            // var upiID = "Getepay.mbandhan123885@icici";
-                            var upiID = "2760848a@bandhan";
-                            var payeeName = "Donation";
-                            
-                            // Build UPI Payment URL
-                            var upiLink = "upi://pay?pa=" + upiID + 
-                                        "&pn=" + encodeURIComponent(payeeName) + 
-                                        "&am=" + amount + 
-                                        "&cu=INR";
-                            
-                            // For iOS devices, try multiple payment apps
+                            // Check if iOS device
                             if (isIOS()) {
-                                // Try to open with intent that shows app chooser
-                                var paymentApps = [
-                                    "tez://upi/pay?pa=" + upiID + "&pn=" + encodeURIComponent(payeeName) + "&am=" + amount + "&cu=INR",
-                                    "phonepe://pay?pa=" + upiID + "&pn=" + encodeURIComponent(payeeName) + "&am=" + amount + "&cu=INR",
-                                    "paytmmp://pay?pa=" + upiID + "&pn=" + encodeURIComponent(payeeName) + "&am=" + amount + "&cu=INR",
-                                    upiLink
-                                ];
-                                
-                                // Try each app with a fallback mechanism
-                                var tryApp = function(index) {
-                                    if (index >= paymentApps.length) {
-                                        alert("Please use the QR code option to complete payment");
-                                        return;
-                                    }
-                                    
-                                    var iframe = document.createElement("iframe");
-                                    iframe.style.display = "none";
-                                    iframe.src = paymentApps[index];
-                                    document.body.appendChild(iframe);
-                                    
-                                    setTimeout(function() {
-                                        document.body.removeChild(iframe);
-                                        tryApp(index + 1);
-                                    }, 500);
-                                };
-                                
-                                tryApp(0);
+                                // Show payment app selection modal for iOS
+                                showPaymentAppModal(inputs.amount);
                             } else {
-                                // For Android, use standard UPI link (Android handles app selection automatically)
+                                // For Android, use generic UPI link (Android handles app selection)
+                                var upiLink = buildUpiUrl("upi://pay", inputs.amount);
                                 window.location.href = upiLink;
                             }
                         });
@@ -3277,44 +3353,13 @@
                         generateQRBtn.addEventListener("click", function(e) {
                             e.preventDefault();
                             
-                            // Get form values
-                            var phone = document.getElementById("ff_5_input_text_2").value.trim();
-                            var email = document.getElementById("ff_5_email").value.trim();
-                            var amount = document.getElementById("ff_5_custom-payment-amount").value.trim();
+                            var inputs = validateInputs();
+                            if (!inputs) return;
                             
-                            // Validate inputs
-                            if (!phone) {
-                                alert("Please enter your phone number");
-                                return;
-                            }
-                            
-                            if (!email) {
-                                alert("Please enter your email address");
-                                return;
-                            }
-                            
-                            if (!amount || parseFloat(amount) <= 0) {
-                                alert("Please enter a valid donation amount");
-                                return;
-                            }
-                            
-                            // Optional: Store donation details
-                            console.log("QR Donation Details:", {
-                                phone: phone,
-                                email: email,
-                                amount: amount
-                            });
-                            
-                            // UPI Configuration - CHANGE THIS TO YOUR UPI ID
-                            // var upiID = "Getepay.mbandhan123885@icici";
-                            var upiID = "2760848a@bandhan";
-                            var payeeName = "Donation";
+                            console.log("QR Donation Details:", inputs);
                             
                             // Build UPI Payment URL
-                            var upiLink = "upi://pay?pa=" + upiID + 
-                                        "&pn=" + encodeURIComponent(payeeName) + 
-                                        "&am=" + amount + 
-                                        "&cu=INR";
+                            var upiLink = buildUpiUrl("upi://pay", inputs.amount);
                             
                             // Clear previous QR code
                             qrCodeDiv.innerHTML = "";
@@ -3337,13 +3382,27 @@
                         });
                     }
                     
-                    // Handle "Close" button
+                    // Handle "Close QR" button
                     if (closeQRBtn) {
                         closeQRBtn.addEventListener("click", function() {
                             qrCodeContainer.style.display = "none";
                             qrCodeDiv.innerHTML = "";
                         });
                     }
+                    
+                    // Handle "Close Modal" button
+                    if (closeModalBtn) {
+                        closeModalBtn.addEventListener("click", function() {
+                            paymentAppModal.style.display = "none";
+                        });
+                    }
+                    
+                    // Close modal when clicking outside
+                    paymentAppModal.addEventListener("click", function(e) {
+                        if (e.target === paymentAppModal) {
+                            paymentAppModal.style.display = "none";
+                        }
+                    });
                 })();
             </script>
         </div>
